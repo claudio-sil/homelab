@@ -10,10 +10,11 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" ];
 
-      # Standard Flake outputs go in 'flake'
       flake = {
         nixosConfigurations.nectar = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
+          # Pass 'inputs' to all imported modules safely!
+          specialArgs = { inherit inputs; };
           modules = [
             ./modules/core/default.nix
             ./modules/hosts/nectar/configuration.nix
