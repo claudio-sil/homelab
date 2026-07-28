@@ -1,8 +1,6 @@
-{ self, ... }: {
+{ pkgs, ... }:
 
-  # Expose as self.nixosModules.core so host configs can import it
-  flake.nixosModules.core = { pkgs, ... }: {
-  
+{
   # 1. Bootloader Configuration (EFI / systemd-boot)
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -36,8 +34,7 @@
     isNormalUser = true;
     extraGroups = [ "wheel" "disk" "networkmanager" ];
     openssh.authorizedKeys.keys = [
-
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEOuCLnuBe4jS9FefBnQpg8liL2CQbVR2Afh2Q5KOZaG claudio@dio-olamot.com"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEOuCLnuBe4jS9FefBnQpg8liL2CQbVR2Afh2Q5KOZaG claudio@dio-olamot.com"
     ];
   };
 
