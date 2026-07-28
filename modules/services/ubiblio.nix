@@ -91,6 +91,10 @@ in
       VERIFY_KEY_FILE = "/var/lib/ubiblio/data/verify_key.txt";
     };
 
+    # uBiblio shells out to `openssl rand -hex 32` as a fallback for
+    # generating its secret/signing keys on first run.
+    path = [ pkgs.openssl ];
+
     serviceConfig = {
       Type = "simple";
       User = "ubiblio";
