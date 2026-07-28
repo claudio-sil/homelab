@@ -1,7 +1,36 @@
 { pkgs, ... }:
 
 let
-  # Dedicated Python environment with uBiblio dependencies
+  py = pkgs.python3Packages;
+
+  # fastapi-limiter is not packaged in nixpkgs, so we build it ourselves.
+  # It's a small pure-python package (poetry-core build backend).
+  fastapi-limiter = py.buildPythonPackage rec {
+    pname = "fastapi-limiter";
+    version = "0.1.6";
+    pyproject = true;
+
+    src = pkgs.fetchurl {
+      url = "https://files.pythonhosted.org/packages/7f/99/c7903234488d4dca5f9bccb4f88c2f582a234f0dca33348781c9cf8a48c6/fastapi_limiter-0.1.6.tar.gz";
+      hash = "sha256-b1/ejv6+Euszhhvf+5EAn2mTaaPChizcfB2az5Ev9EM=";
+    };
+
+    nativeBuildInputs = [ py.poetry-core ];
+    propagatedBuildInputs = [ py.redis py.fastapi ];
+    pythonImportsCheck = [ "fastapi_limiter" ];
+  };
+
+  # Pinned upstream source (replaces the old runtime `git clone` in preStart,
+  # so the exact code running is reproducible and content-addressed).
+  ubiblio-src = pkgs.fetchFromGitHub {
+    owner = "seanboyce";
+    repo = "ubiblio";
+    rev = "7b135056e405044458bbe71eb5883205316100bf"; # main, 2026-07-29 — bump deliberately
+    hash = "sha256-4ZSRcb2a8rEkyZG94eUsBTAErgchU7+jEl+RYhk2YyI=";
+  };
+
+  # Dedicated Python environment with uBiblio's actual runtime dependencies
+  # (per its requirements.txt + the undeclared `ecdsa` import in vars.py).
   ubiblio-python = pkgs.python3.withPackages (ps: with ps; [
     fastapi
     uvicorn
@@ -10,9 +39,15 @@ let
     pydantic
     requests
     aiofiles
-    sqlite3
     passlib
-    pyjwt
+    python-jose
+    sqlalchemy
+    pymysql
+    pillow
+    redis
+    rich
+    ecdsa
+    fastapi-limiter
   ]);
 in
 {
@@ -25,14 +60,14 @@ in
   };
   users.groups.ubiblio = {};
 
-  # Ensure storage directories exist with proper permissions
+  # Writable state lives entirely under /var/lib/ubiblio/data;
+  # the app source itself is an immutable, read-only Nix store path.
   systemd.tmpfiles.rules = [
-    "d /var/lib/ubiblio 0755 ubiblio ubiblio -"
-    "d /var/lib/ubiblio/app 0755 ubiblio ubiblio -"
-    "d /var/lib/ubiblio/data 0755 ubiblio ubiblio -"
+    "d /var/lib/ubiblio 0750 ubiblio ubiblio -"
+    "d /var/lib/ubiblio/data 0750 ubiblio ubiblio -"
   ];
 
-  # 2. Native Systemd Service (replaces virtualisation.oci-containers)
+  # 2. Native systemd service running straight from the Nix store
   systemd.services.ubiblio = {
     description = "uBiblio Personal Library Manager";
     after = [ "network.target" ];
@@ -40,32 +75,32 @@ in
 
     environment = {
       LANGUAGE = "EN";
-      DATA_DIR = "/var/lib/ubiblio/data";
+      USE_REDIS = "false";
+      DB_LOCATION = "/var/lib/ubiblio/data/sql_app.db";
+      SECRET_KEY_FILE = "/var/lib/ubiblio/data/secret_key.txt";
+      SIGNING_KEY_FILE = "/var/lib/ubiblio/data/sign_key.txt";
+      VERIFY_KEY_FILE = "/var/lib/ubiblio/data/verify_key.txt";
     };
 
     serviceConfig = {
       Type = "simple";
       User = "ubiblio";
       Group = "ubiblio";
-      WorkingDirectory = "/var/lib/ubiblio/app";
-      ExecStart = "${ubiblio-python}/bin/uvicorn main:app --host 0.0.0.0 --port 8000";
+      WorkingDirectory = "${ubiblio-src}";
+      ExecStart = "${ubiblio-python}/bin/uvicorn ubiblio.main:app --host 0.0.0.0 --port 8000 --forwarded-allow-ips '*' --proxy-headers";
       Restart = "always";
       RestartSec = "10s";
 
-      # Security & sandboxing
-      ProtectSystem = "full";
+      # Security & sandboxing — the store path is read-only regardless,
+      # this just also locks down the rest of the filesystem.
+      ProtectSystem = "strict";
       ProtectHome = true;
       PrivateTmp = true;
+      ReadWritePaths = [ "/var/lib/ubiblio/data" ];
+      NoNewPrivileges = true;
     };
-
-    # Clone/update source code on start if not already cloned
-    preStart = ''
-      if [ ! -f "/var/lib/ubiblio/app/main.py" ]; then
-        ${pkgs.git}/bin/git clone https://github.com/seanboyce/ubiblio.git /var/lib/ubiblio/app
-      fi
-    '';
   };
 
-  # 3. Open firewall port for web access
+  # 3. Open firewall port for web access (LAN only for now)
   networking.firewall.allowedTCPPorts = [ 8000 ];
 }
