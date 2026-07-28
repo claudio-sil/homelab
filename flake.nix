@@ -19,6 +19,8 @@
             ./modules/core/default.nix
             ./modules/hosts/nectar/configuration.nix
             ./modules/hosts/nectar/hardware.nix
+            ./modules/services/home-assistant.nix
+            ./modules/services/ubiblio.nix
           ];
         };
       };
