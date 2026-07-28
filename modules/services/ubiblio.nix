@@ -26,7 +26,7 @@ let
     owner = "seanboyce";
     repo = "ubiblio";
     rev = "7b135056e405044458bbe71eb5883205316100bf"; # main, 2026-07-29 — bump deliberately
-    hash = "sha256-4ZSRcb2a8rEkyZG94eUsBTAErgchU7+jEl+RYhk2YyI=";
+    hash = "sha256-wmVZXNQS3g1lIygW8VuMe8H7XAudetZhcLnPgSlkwCc=";
   };
 
   # Dedicated Python environment with uBiblio's actual runtime dependencies
