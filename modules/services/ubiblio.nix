@@ -51,6 +51,15 @@ let
   ]);
 in
 {
+  # uBiblio's federation feature hard-requires `ecdsa` at startup (signing
+  # self-test runs unconditionally), but nixpkgs flags it insecure due to
+  # CVE-2024-23342 (ECDSA signing timing side-channel). Explicitly allowing
+  # just this package rather than disabling the insecure-package check
+  # globally. Revisit if/when this box is exposed to the internet.
+  nixpkgs.config.permittedInsecurePackages = [
+    "python3.14-ecdsa-0.19.2"
+  ];
+
   # 1. Dedicated system user and persistent directory
   users.users.ubiblio = {
     isSystemUser = true;
