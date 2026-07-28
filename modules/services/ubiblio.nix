@@ -83,7 +83,10 @@ in
     wantedBy = [ "multi-user.target" ];
 
     environment = {
-      LANGUAGE = "EN";
+      # Empty string = English (root templates/ dir). Only other value
+      # supported upstream right now is "FR" (templates/FR/). "EN" is NOT
+      # a valid value here - there is no templates/EN directory.
+      LANGUAGE = "";
       USE_REDIS = "false";
       DB_LOCATION = "/var/lib/ubiblio/data/sql_app.db";
       SECRET_KEY_FILE = "/var/lib/ubiblio/data/secret_key.txt";
