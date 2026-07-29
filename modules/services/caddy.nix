@@ -8,15 +8,6 @@
   # real domain or port-forwarding. This is what gets camera/microphone
   # access (getUserMedia) working for uBiblio's barcode scanner, which
   # browsers refuse to allow over plain HTTP.
-  #
-  # Each service gets its own port rather than name-based (SNI) routing,
-  # since LAN mDNS (nectar.local) isn't reliably resolving on all client
-  # devices yet — bare-IP HTTPS still works fine per-port.
-  #
-  # When Tailscale comes into the picture later, this can either stay
-  # as-is (reachable only over the tailnet) or be swapped for Tailscale
-  # Funnel/serve handling TLS instead — worth revisiting then rather
-  # than pre-optimizing for it now.
   services.caddy = {
     enable = true;
 
@@ -27,11 +18,7 @@
     # client device trusts it manually (or just clicks through the
     # browser warning) instead.
     globalConfig = ''
-      pki {
-        ca local {
-          install_trust false
-        }
-      }
+      skip_install_trust
     '';
 
     virtualHosts = {
