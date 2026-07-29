@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 let
   py = pkgs.python3Packages;
@@ -92,6 +92,8 @@ in
       SECRET_KEY_FILE = "/var/lib/ubiblio/data/secret_key.txt";
       SIGNING_KEY_FILE = "/var/lib/ubiblio/data/sign_key.txt";
       VERIFY_KEY_FILE = "/var/lib/ubiblio/data/verify_key.txt";
+      # CREATE_ADMIN_USER / ADMIN_USERNAME / ADMIN_PASSWORD come from the
+      # sops-nix template (see EnvironmentFile below) — not plaintext here.
     };
 
     # uBiblio shells out to `openssl rand -hex 32` as a fallback for
@@ -106,6 +108,7 @@ in
       ExecStart = "${ubiblio-python}/bin/uvicorn ubiblio.main:app --host 0.0.0.0 --port 8000 --forwarded-allow-ips '*' --proxy-headers";
       Restart = "always";
       RestartSec = "10s";
+      EnvironmentFile = config.sops.templates."ubiblio.env".path;
 
       # Security & sandboxing — the store path is read-only regardless,
       # this just also locks down the rest of the filesystem.

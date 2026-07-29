@@ -1,0 +1,9 @@
+keys:
+  - &host_nectar age1ljrcq7vf0ut04tpwrzfj2xfxtth9ux0tg8dxt85zdr64nv6mtspse3xx2a
+  - &user_claudio age1r7v2rrhwd2knfm68dhynw9xxfjdy54mdtqpcma0uc0myqewvypqq7ys7q2
+creation_rules:
+  - path_regex: secrets\.yaml$
+    key_groups:
+      - age:
+          - *host_nectar
+          - *user_claudio
