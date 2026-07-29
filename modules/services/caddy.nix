@@ -19,6 +19,21 @@
   # than pre-optimizing for it now.
   services.caddy = {
     enable = true;
+
+    # Skip Caddy's attempt to install its self-signed root CA into the
+    # OS-wide trust store — it was failing (missing `certutil`, and the
+    # `tee` fallback also errored), which was breaking cert issuance
+    # entirely. We don't want it installed server-side anyway; each
+    # client device trusts it manually (or just clicks through the
+    # browser warning) instead.
+    globalConfig = ''
+      pki {
+        ca local {
+          install_trust false
+        }
+      }
+    '';
+
     virtualHosts = {
       ":8443" = {
         extraConfig = ''
