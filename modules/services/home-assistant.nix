@@ -32,6 +32,6 @@
     };
   };
 
-  # 2. Open firewall port for Home Assistant
-  networking.firewall.allowedTCPPorts = [ 8123 ];
+  # Port 8123 is no longer opened directly — traffic now goes through
+  # Caddy (modules/services/caddy.nix) on :8444.
 }

@@ -24,6 +24,7 @@
             ./modules/hosts/nectar/hardware.nix
             ./modules/services/home-assistant.nix
             ./modules/services/ubiblio.nix
+            ./modules/services/caddy.nix
             ./modules/secrets.nix
           ];
         };

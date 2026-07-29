@@ -142,6 +142,7 @@ in
     };
   };
 
-  # 3. Open firewall port for web access (LAN only for now)
-  networking.firewall.allowedTCPPorts = [ 8000 ];
+  # Port 8000 is no longer opened directly — traffic now goes through
+  # Caddy (modules/services/caddy.nix) on :8443, which gets you HTTPS
+  # (needed for camera access) and loopback-proxies to this service.
 }
