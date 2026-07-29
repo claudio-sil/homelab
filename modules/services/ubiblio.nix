@@ -74,6 +74,7 @@ in
   systemd.tmpfiles.rules = [
     "d /var/lib/ubiblio 0750 ubiblio ubiblio -"
     "d /var/lib/ubiblio/data 0750 ubiblio ubiblio -"
+    "d /var/lib/ubiblio/data/run 0750 ubiblio ubiblio -"
   ];
 
   # 2. Native systemd service running straight from the Nix store
@@ -100,11 +101,32 @@ in
     # generating its secret/signing keys on first run.
     path = [ pkgs.openssl ];
 
+    # uBiblio writes covers, thumbnails, and DB exports using paths
+    # relative to its CWD (e.g. `./static/bookImages/...`, `export/...`).
+    # Since the app source is an immutable, read-only store path, we build
+    # a writable "run" directory each start: read-only pieces (the Python
+    # package, templates, bundled static assets) are symlinked/copied in,
+    # while bookImages/ and export/ are real directories under
+    # /var/lib/ubiblio that persist across restarts and rebuilds.
+    preStart = ''
+      RUN_DIR=/var/lib/ubiblio/data/run
+
+      ln -sfn ${ubiblio-src}/ubiblio "$RUN_DIR/ubiblio"
+      ln -sfn ${ubiblio-src}/templates "$RUN_DIR/templates"
+
+      mkdir -p "$RUN_DIR/static"
+      find ${ubiblio-src}/static -mindepth 1 -maxdepth 1 ! -name bookImages \
+        -exec cp -rf {} "$RUN_DIR/static/" \;
+      mkdir -p "$RUN_DIR/static/bookImages"
+
+      mkdir -p "$RUN_DIR/export"
+    '';
+
     serviceConfig = {
       Type = "simple";
       User = "ubiblio";
       Group = "ubiblio";
-      WorkingDirectory = "${ubiblio-src}";
+      WorkingDirectory = "/var/lib/ubiblio/data/run";
       ExecStart = "${ubiblio-python}/bin/uvicorn ubiblio.main:app --host 0.0.0.0 --port 8000 --forwarded-allow-ips '*' --proxy-headers";
       Restart = "always";
       RestartSec = "10s";
