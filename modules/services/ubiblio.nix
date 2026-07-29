@@ -101,13 +101,14 @@ in
     # generating its secret/signing keys on first run.
     path = [ pkgs.openssl ];
 
-    # uBiblio writes covers, thumbnails, and DB exports using paths
-    # relative to its CWD (e.g. `./static/bookImages/...`, `export/...`).
-    # Since the app source is an immutable, read-only store path, we build
-    # a writable "run" directory each start: read-only pieces (the Python
-    # package, templates, bundled static assets) are symlinked/copied in,
-    # while bookImages/ and export/ are real directories under
-    # /var/lib/ubiblio that persist across restarts and rebuilds.
+    # uBiblio writes covers, ebook files, thumbnails, and DB exports using
+    # paths relative to its CWD (e.g. `./static/bookImages/...`,
+    # `./static/eBooks/...`, `export/...`). Since the app source is an
+    # immutable, read-only store path, we build a writable "run" directory
+    # each start: read-only pieces (the Python package, templates, bundled
+    # static assets) are symlinked/copied in, while bookImages/, eBooks/,
+    # and export/ are real directories under /var/lib/ubiblio that
+    # persist across restarts and rebuilds.
     preStart = ''
       RUN_DIR=/var/lib/ubiblio/data/run
 
@@ -115,9 +116,10 @@ in
       ln -sfn ${ubiblio-src}/templates "$RUN_DIR/templates"
 
       mkdir -p "$RUN_DIR/static"
-      find ${ubiblio-src}/static -mindepth 1 -maxdepth 1 ! -name bookImages \
+      find ${ubiblio-src}/static -mindepth 1 -maxdepth 1 ! -name bookImages ! -name eBooks \
         -exec cp -rf {} "$RUN_DIR/static/" \;
       mkdir -p "$RUN_DIR/static/bookImages"
+      mkdir -p "$RUN_DIR/static/eBooks"
 
       mkdir -p "$RUN_DIR/export"
     '';
