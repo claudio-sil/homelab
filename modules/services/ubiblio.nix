@@ -118,10 +118,13 @@ in
       mkdir -p "$RUN_DIR/static"
       find ${ubiblio-src}/static -mindepth 1 -maxdepth 1 ! -name bookImages ! -name eBooks \
         -exec cp -rf {} "$RUN_DIR/static/" \;
-      mkdir -p "$RUN_DIR/static/bookImages"
-      mkdir -p "$RUN_DIR/static/eBooks"
-
-      mkdir -p "$RUN_DIR/export"
+      mkdir -p "$RUN_DIR/static/bookImages" "$RUN_DIR/static/eBooks" "$RUN_DIR/export"
+      # mkdir -p is a no-op if these already exist, which means a stale
+      # read-only mode from an earlier preStart version (e.g. one that
+      # copied these in from the read-only /nix/store instead of
+      # creating them fresh) would silently persist. Force them writable
+      # every start so that can't happen again.
+      chmod u+rwx "$RUN_DIR/static/bookImages" "$RUN_DIR/static/eBooks" "$RUN_DIR/export"
     '';
 
     serviceConfig = {
