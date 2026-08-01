@@ -10,6 +10,7 @@
 
   sops.secrets.ubiblio_admin_username = {};
   sops.secrets.ubiblio_admin_password = {};
+  sops.secrets.ubiblio_nli_api_key = {};
 
   # Renders a plain KEY=VALUE env file at runtime (decrypted, root-only,
   # never touches the git repo or the Nix store) that ubiblio.nix points
@@ -19,6 +20,7 @@
       CREATE_ADMIN_USER=true
       ADMIN_USERNAME=${config.sops.placeholder.ubiblio_admin_username}
       ADMIN_PASSWORD=${config.sops.placeholder.ubiblio_admin_password}
+      NLI_API_KEY=${config.sops.placeholder.ubiblio_nli_api_key}
     '';
     restartUnits = [ "ubiblio.service" ];
   };
