@@ -1,0 +1,10 @@
+{% if code %}
+<div style="margin-bottom:20px;">
+  <p>Automatic lookup for code <strong>{{ code }}</strong> didn't find a match (common for Israeli Danacode barcodes, which aren't ISBNs). Enter the book's title and we'll look it up via the National Library of Israel:</p>
+  <form onsubmit="nliTitleLookup();return false;">
+    <input type="text" name="nliTitleInput" placeholder="Book title" value="" />
+    <input type="submit" value="Look up by title" />
+  </form>
+</div>
+<hr />
+{% endif %}

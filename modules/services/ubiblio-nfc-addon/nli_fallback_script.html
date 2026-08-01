@@ -1,0 +1,7 @@
+
+<script>
+  function nliTitleLookup() {
+    var t = document.getElementsByName("nliTitleInput")[0].value;
+    window.location.href = "/nliTitle/{{ code }}?title=" + encodeURIComponent(t);
+  }
+</script>

@@ -29,6 +29,93 @@ let
     hash = "sha256-wmVZXNQS3g1lIygW8VuMe8H7XAudetZhcLnPgSlkwCc=";
   };
 
+  # NFC withdraw/return addon: adds one new route (GET /nfc/{bookId}) that
+  # a phone tapping an NFC sticker on the physical book hits directly (via
+  # an NDEF URI record written to the tag) — no companion app needed. It
+  # toggles withdrawn/returned using uBiblio's own existing crud functions,
+  # same ones the manual /withdraw and /return pages already use.
+  #
+  # Danacode fallback addon: Israeli Danacode barcodes aren't valid ISBNs,
+  # so the existing Google Books/Open Library/Wikipedia chain never finds
+  # them. Neither Danacode's own operator (D.A.N.A Systems) nor Simania
+  # nor NLI's search API expose a way to look a book up BY its Danacode —
+  # confirmed by hand against all three; it's only ever stored as metadata
+  # on a record you already found some other way. So instead: when a scan
+  # fails ISBN lookup, the UI offers a "look up by title" fallback that
+  # queries the National Library of Israel by title (much better hit rate
+  # on Hebrew/Israeli books than the existing providers), and the scanned
+  # code gets stored on the new book's customField1 for reference.
+  #
+  # Both applied as an overlay on top of the pinned source rather than
+  # editing ubiblio-src directly, since fetched store paths are immutable.
+  ubiblio-src-patched = pkgs.runCommand "ubiblio-src-patched" { } ''
+    cp -r ${ubiblio-src} $out
+    chmod -R u+w $out
+
+    cp ${./ubiblio-nfc-addon/nfc.py} $out/ubiblio/routers/nfc.py
+    cp ${./ubiblio-nfc-addon/nfc_result.html} $out/templates/nfc_result.html
+
+    # Wire the new router into main.py the same way the other five are.
+    substituteInPlace $out/ubiblio/main.py \
+      --replace-fail \
+        "from .routers import auth, books, reading_lists, files, admin, federation" \
+        "from .routers import auth, books, reading_lists, files, admin, federation, nfc" \
+      --replace-fail \
+        "app.include_router(federation.router)" \
+        "app.include_router(federation.router)\napp.include_router(nfc.router)"
+
+    # NLI_API_KEY env var, same pattern as the existing GOOGLE_BOOKS_API_KEY.
+    substituteInPlace $out/ubiblio/vars.py \
+      --replace-fail \
+        'GOOGLE_BOOKS_API_KEY = os.environ.get("GB_API", "")' \
+        'GOOGLE_BOOKS_API_KEY = os.environ.get("GB_API", "")
+NLI_API_KEY = os.environ.get("NLI_API_KEY", "")'
+
+    # New provider method + service functions + route, each appended to
+    # their existing file (avoids fragile mid-file insertion).
+    cat ${./ubiblio-nfc-addon/nli_by_title_method.py} >> $out/ubiblio/routers/books/book_metadata_client.py
+    cat ${./ubiblio-nfc-addon/service_nli_additions.py} >> $out/ubiblio/routers/books/service.py
+    cat ${./ubiblio-nfc-addon/api_nli_route.py} >> $out/ubiblio/routers/books/api.py
+
+    # Carry the scanned code forward on ISBN-lookup failure so the
+    # title-fallback form (added to the templates below) knows what to
+    # tag the eventual book with.
+    substituteInPlace $out/ubiblio/routers/books/api.py \
+      --replace-fail \
+        'errors = ["ISBN " + str(isbn) + " not found -- try another."]
+        context = {
+            "errors": errors,
+            "user": user,
+            "request": request,
+        }' \
+        'errors = ["ISBN " + str(isbn) + " not found -- try another."]
+        context = {
+            "errors": errors,
+            "code": isbn,
+            "user": user,
+            "request": request,
+        }'
+
+    # Title-fallback form + its JS, inserted into both the manual-add and
+    # camera-scan templates (only rendered when "code" is present in the
+    # template context, i.e. after a failed ISBN lookup).
+    for tmpl in addisbn.html scanIsbn.html; do
+      substituteInPlace $out/templates/$tmpl \
+        --replace-fail \
+          '    {% for error in errors %}
+    <p style="color: red">{{ error }}</p>
+    {% endfor %}' \
+          "    {% for error in errors %}
+    <p style=\"color: red\">{{ error }}</p>
+    {% endfor %}
+$(cat ${./ubiblio-nfc-addon/nli_fallback_form.html})" \
+        --replace-fail \
+          '{% endblock %}' \
+          "$(cat ${./ubiblio-nfc-addon/nli_fallback_script.html})
+{% endblock %}"
+    done
+  '';
+
   # Dedicated Python environment with uBiblio's actual runtime dependencies
   # (per its requirements.txt + the undeclared `ecdsa` import in vars.py).
   ubiblio-python = pkgs.python3.withPackages (ps: with ps; [
@@ -112,11 +199,11 @@ in
     preStart = ''
       RUN_DIR=/var/lib/ubiblio/data/run
 
-      ln -sfn ${ubiblio-src}/ubiblio "$RUN_DIR/ubiblio"
-      ln -sfn ${ubiblio-src}/templates "$RUN_DIR/templates"
+      ln -sfn ${ubiblio-src-patched}/ubiblio "$RUN_DIR/ubiblio"
+      ln -sfn ${ubiblio-src-patched}/templates "$RUN_DIR/templates"
 
       mkdir -p "$RUN_DIR/static"
-      find ${ubiblio-src}/static -mindepth 1 -maxdepth 1 ! -name bookImages ! -name eBooks \
+      find ${ubiblio-src-patched}/static -mindepth 1 -maxdepth 1 ! -name bookImages ! -name eBooks \
         -exec cp -rf {} "$RUN_DIR/static/" \;
       mkdir -p "$RUN_DIR/static/bookImages" "$RUN_DIR/static/eBooks" "$RUN_DIR/export"
       # mkdir -p is a no-op if these already exist, which means a stale
