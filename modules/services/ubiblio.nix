@@ -62,7 +62,8 @@ let
         "from .routers import auth, books, reading_lists, files, admin, federation, nfc" \
       --replace-fail \
         "app.include_router(federation.router)" \
-        "app.include_router(federation.router)\napp.include_router(nfc.router)"
+        "app.include_router(federation.router)
+app.include_router(nfc.router)"
 
     # NLI_API_KEY env var, same pattern as the existing GOOGLE_BOOKS_API_KEY.
     substituteInPlace $out/ubiblio/vars.py \
@@ -203,6 +204,13 @@ in
       ln -sfn ${ubiblio-src-patched}/templates "$RUN_DIR/templates"
 
       mkdir -p "$RUN_DIR/static"
+      # cp -r preserves the SOURCE directory's permission bits, and
+      # everything in /nix/store is read-only by design -- so a copied-in
+      # bundled-asset directory (assets/, images/, etc.) ends up read-only
+      # too. Left alone, that breaks *future* re-copies on the next
+      # rebuild (cp can't overwrite files inside a read-only directory).
+      # Force the whole tree writable before copying so this can't recur.
+      chmod -R u+w "$RUN_DIR/static" 2>/dev/null || true
       find ${ubiblio-src-patched}/static -mindepth 1 -maxdepth 1 ! -name bookImages ! -name eBooks \
         -exec cp -rf {} "$RUN_DIR/static/" \;
       mkdir -p "$RUN_DIR/static/bookImages" "$RUN_DIR/static/eBooks" "$RUN_DIR/export"
