@@ -11,6 +11,20 @@ from ..dependencies import (
 router = APIRouter()
 
 
+def _book_location(book) -> list[tuple[str, str]]:
+    """Return the non-empty physical-location fields in display order."""
+    fields = (
+        ("Library", book.library),
+        ("Collection", book.collection),
+        ("Shelf", book.shelf),
+    )
+    return [
+        (label, str(value).strip())
+        for label, value in fields
+        if value is not None and str(value).strip()
+    ]
+
+
 # Single toggling endpoint meant to be launched by tapping an NFC sticker
 # stuck to the physical book (an NDEF URI record pointing here — see the
 # homelab docs for how each tag gets written). Whichever phone taps it
@@ -20,11 +34,19 @@ router = APIRouter()
 @router.get("/nfc/{bookId}", dependencies=[get_rate_limiter(times=1, seconds=1)], response_class=HTMLResponse)
 async def nfc_toggle(bookId, request: Request, user: current_user):
     db = SessionLocal()
+    location = []
     try:
         book = crud.getBookById(db, bookId)
         if not book:
-            context = {"user": user, "request": request, "message": "No such book."}
-            return templates.TemplateResponse(request, "nfc_result.html", context, status_code=404)
+            context = {
+                "user": user,
+                "request": request,
+                "message": "No such book.",
+                "location": [],
+            }
+            return templates.TemplateResponse(
+                request, "nfc_result.html", context, status_code=404
+            )
 
         now_withdrawn = not book.withdrawn
         updated = schemas.Book(
@@ -41,9 +63,15 @@ async def nfc_toggle(bookId, request: Request, user: current_user):
             message = f"'{book.title}' withdrawn by {user.username}."
         else:
             crud.bookReturn(db, updated)
-            message = f"'{book.title}' returned to the shelf."
+            message = f"'{book.title}' returned."
+            location = _book_location(book)
     finally:
         db.close()
 
-    context = {"user": user, "request": request, "message": message}
+    context = {
+        "user": user,
+        "request": request,
+        "message": message,
+        "location": location,
+    }
     return templates.TemplateResponse(request, "nfc_result.html", context)

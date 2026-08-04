@@ -3,9 +3,19 @@
 
 <!-- Banner -->
 	<!-- Two -->
-<div class="inner" style = "padding: 20px 0 5em 5em;">
+<div class="inner" style="padding: 20px 0 5em 5em;">
 <div style="display:block; clear:both; float:none;">
 <h3><strong>{{ message }}</strong></h3>
+
+{% if location %}
+	<h4>Return location</h4>
+	<ul>
+	{% for label, value in location %}
+		<li><strong>{{ label }}:</strong> {{ value }}</li>
+	{% endfor %}
+	</ul>
+{% endif %}
+
 	<p><a href="/searchbooks">Back to search</a> &middot; <a href="/withdrawn">View withdrawn books</a></p>
 
 <hr>
