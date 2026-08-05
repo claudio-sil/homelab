@@ -5,8 +5,14 @@
     { config, lib, pkgs, ... }:
     {
       imports = [
+        inputs.sops-nix.nixosModules.sops
+
         self.nixosModules.nectarHardware
         self.nixosModules.core
+        self.nixosModules.caddy
+        self.nixosModules.home-assistant
+        self.nixosModules.ubiblio
+        self.nixosModules.secrets
         self.nixosModules.tailscale
       ];
 

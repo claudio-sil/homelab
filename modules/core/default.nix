@@ -55,6 +55,7 @@
     bat
     tree
     htop
+    jq
   ];
 };
 }

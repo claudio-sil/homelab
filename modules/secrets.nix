@@ -1,4 +1,8 @@
-{ config, ... }:
+{ self, inputs, ... }:
+
+{
+  flake.nixosModules.secrets =
+    { config, ... }:
 
 {
   # Decrypt using nectar's own SSH host key (already exists, no extra key
@@ -24,4 +28,5 @@
     '';
     restartUnits = [ "ubiblio.service" ];
   };
+};
 }
