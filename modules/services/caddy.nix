@@ -1,4 +1,6 @@
-{ ... }:
+{ self, inputs,  ... }:
+{
+  flake.nixosModules.caddy =
 
 {
   services.caddy = {
@@ -27,4 +29,5 @@
   };
 
   networking.firewall.allowedTCPPorts = [ 8443 8444 ];
+};
 }

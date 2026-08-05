@@ -1,5 +1,8 @@
-{ pkgs, ... }:
+{ self, inputs, ... }:
 
+{
+  flake.nixosModules.home-assistant =
+    { config, lib, pkgs, ... }:
 {
   # 1. Enable Home Assistant Service
   services.home-assistant = {
@@ -34,4 +37,5 @@
 
   # Port 8123 is no longer opened directly — traffic now goes through
   # Caddy (modules/services/caddy.nix) on :8444.
+};
 }

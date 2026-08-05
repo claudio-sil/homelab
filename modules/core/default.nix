@@ -1,6 +1,10 @@
-{ pkgs, ... }:
+{ self, inputs, ... }:
 
 {
+  flake.nixosModules.core =
+    { pkgs, ... }:
+    {
+
   # 1. Bootloader Configuration (EFI / systemd-boot)
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -52,4 +56,5 @@
     tree
     htop
   ];
+};
 }

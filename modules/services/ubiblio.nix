@@ -1,4 +1,9 @@
-{ pkgs, config, ... }:
+{ self, inputs, ... }:
+{
+  flake.nixosModules.ubiblio =
+
+    { config, lib, pkgs, ... }:
+    
 
 let
   py = pkgs.python3Packages;
@@ -245,4 +250,5 @@ in
   # Port 8000 is no longer opened directly — traffic now goes through
   # Caddy (modules/services/caddy.nix) on :8443, which gets you HTTPS
   # (needed for camera access) and loopback-proxies to this service.
+};
 }
