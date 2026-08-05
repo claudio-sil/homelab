@@ -1,16 +1,15 @@
 
-    def nli_by_title(self, title: str) -> tuple[dict[str, str], int | None]:
+    def nli_by_title(self, title: str, author: str = "") -> tuple[dict[str, str], int | None]:
+        """Look up a book by title and optional author at the NLI.
+
+        NLI search results are ranked locally so an author can disambiguate
+        similarly titled books without depending on undocumented compound
+        query syntax. The selected record's MARC 520 field is used as the
+        summary when available.
         """
-        Title-based lookup against the National Library of Israel. Used
-        as a fallback for books identified by Israeli Danacode, which
-        has no public reverse-lookup service of its own (confirmed by
-        hand against both NLI's and Simania's APIs: both store Danacode
-        as metadata on a record you already found some other way,
-        neither lets you search BY it). Given a title instead, this gets
-        much better hit rates on Hebrew/Israeli books than Google Books,
-        Open Library, or Wikipedia.
-        """
+        import difflib
         import re
+        import unicodedata
         import xml.etree.ElementTree as ET
 
         from ...vars import NLI_API_KEY
@@ -21,60 +20,105 @@
         dc_ns = "http://purl.org/dc/elements/1.1/"
         marc_ns = "{http://www.loc.gov/MARC21/slim}"
 
+        def first_value(record: dict, key: str) -> str:
+            values = record.get(dc_ns + key, [])
+            if not values:
+                return ""
+            value = values[0]
+            if isinstance(value, dict):
+                return str(value.get("@value", ""))
+            return str(value)
+
+        def normalize(value: str) -> str:
+            # Remove Hebrew niqqud and other combining marks, punctuation,
+            # and repeated whitespace before comparing search candidates.
+            value = "".join(
+                char for char in unicodedata.normalize("NFKD", value)
+                if not unicodedata.combining(char)
+            ).casefold()
+            value = re.sub(r"[^\w\s]", " ", value, flags=re.UNICODE)
+            return " ".join(value.split())
+
+        def clean_record_title(raw_title: str) -> str:
+            return raw_title.split(" / ")[0].strip().rstrip(",.")
+
+        def clean_record_author(raw_creator: str) -> str:
+            creator_head = raw_creator.split("$$Q")[0]
+            return re.sub(
+                r",?\s*\d{4}-\s*(?:author|מחבר)?\s*$",
+                "",
+                creator_head,
+                flags=re.IGNORECASE,
+            ).strip().rstrip(",")
+
         response = requests.get(
             "https://api.nli.org.il/openlibrary/search",
             params={
                 "api_key": NLI_API_KEY,
-                "query": f"title,contains,{title}",
+                "query": f"title,contains,{title.strip()}",
                 "output_format": "json",
             },
             headers={"User-Agent": self.USER_AGENT},
+            timeout=(5, 20),
         )
         if not response.ok:
             return {}, response.status_code
 
         results = response.json()
-        if not results:
+        if not isinstance(results, list) or not results:
             return {}, 404
 
-        record = results[0]
+        wanted_title = normalize(title)
+        wanted_author = normalize(author)
 
-        raw_title = record.get(dc_ns + "title", [{}])[0].get("@value", "")
-        # NLI titles come as "Title / author statement." -- keep only the
-        # title part (matches MARC 245 $a, before the $c author statement).
-        clean_title = raw_title.split(" / ")[0].strip().rstrip(",.")
+        def candidate_score(record: dict) -> float:
+            candidate_title = normalize(clean_record_title(first_value(record, "title")))
+            candidate_author = normalize(clean_record_author(first_value(record, "creator")))
 
-        raw_creator = record.get(dc_ns + "creator", [{}])[0].get("@value", "")
-        # Typical shape: "Last, First, 1985- author$$QLast, First, 1985-"
-        # Take the part before the $$Q duplicate, strip the trailing
-        # birth-year/role annotation.
-        creator_head = raw_creator.split("$$Q")[0]
-        clean_author = re.sub(r",?\s*\d{4}-\s*\S*$", "", creator_head).strip().rstrip(",")
+            title_score = difflib.SequenceMatcher(None, wanted_title, candidate_title).ratio()
+            if wanted_author:
+                author_score = difflib.SequenceMatcher(None, wanted_author, candidate_author).ratio()
+                return (title_score * 0.7) + (author_score * 0.3)
+            return title_score
 
-        summary = ""
-        marc_links = record.get(dc_ns + "linkToMarc", [{}])
-        marc_url = marc_links[0].get("@id", "") if marc_links else ""
-        if marc_url:
-            try:
-                marc_response = requests.get(marc_url, headers={"User-Agent": self.USER_AGENT})
-                if marc_response.ok:
-                    root = ET.fromstring(marc_response.content)
-                    for datafield in root.iter(marc_ns + "datafield"):
-                        if datafield.get("tag") == "520":
-                            for subfield in datafield.iter(marc_ns + "subfield"):
-                                if subfield.get("code") == "a":
-                                    summary = subfield.text or ""
-                                    break
-                            break
-            except Exception:
-                pass  # summary is a nice-to-have -- never block the lookup on it
+        record = max(results, key=candidate_score)
+        clean_title = clean_record_title(first_value(record, "title"))
+        clean_author = clean_record_author(first_value(record, "creator"))
 
         if not clean_title:
             return {}, 404
 
-        book = {
+        summary = ""
+        marc_links = record.get(dc_ns + "linkToMarc", [])
+        marc_url = ""
+        if marc_links:
+            first_link = marc_links[0]
+            if isinstance(first_link, dict):
+                marc_url = str(first_link.get("@id", ""))
+
+        if marc_url:
+            try:
+                marc_response = requests.get(
+                    marc_url,
+                    headers={"User-Agent": self.USER_AGENT},
+                    timeout=(5, 20),
+                )
+                if marc_response.ok:
+                    root = ET.fromstring(marc_response.content)
+                    summary_parts = []
+                    for datafield in root.iter(marc_ns + "datafield"):
+                        if datafield.get("tag") == "520":
+                            for subfield in datafield.iter(marc_ns + "subfield"):
+                                if subfield.get("code") in {"a", "b"} and subfield.text:
+                                    summary_parts.append(subfield.text.strip())
+                            if summary_parts:
+                                break
+                    summary = " ".join(summary_parts)
+            except (requests.RequestException, ET.ParseError):
+                pass
+
+        return {
             "Title": clean_title,
             "Author": clean_author,
             "Summary": summary,
-        }
-        return book, 200
+        }, 200

@@ -1,7 +1,16 @@
-
 <script>
   function nliTitleLookup() {
-    var t = document.getElementsByName("nliTitleInput")[0].value;
-    window.location.href = "/nliTitle/{{ code }}?title=" + encodeURIComponent(t);
+    const title = document.getElementById("nliTitleInput").value.trim();
+    const author = document.getElementById("nliAuthorInput").value.trim();
+    const code = document.getElementById("nliCodeInput").value.trim();
+
+    if (!title) {
+      return;
+    }
+
+    const params = new URLSearchParams({ title: title });
+    if (author) params.set("author", author);
+    if (code) params.set("code", code);
+    window.location.href = "/nliTitle?" + params.toString();
   }
 </script>

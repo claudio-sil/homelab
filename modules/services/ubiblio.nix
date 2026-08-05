@@ -97,9 +97,9 @@ NLI_API_KEY = os.environ.get("NLI_API_KEY", "")'
             "request": request,
         }'
 
-    # Title-fallback form + its JS, inserted into both the manual-add and
-    # camera-scan templates (only rendered when "code" is present in the
-    # template context, i.e. after a failed ISBN lookup).
+    # Permanent NLI title/author form + its JS, inserted into both the
+    # manual-add and camera-scan pages. A failed ISBN scan still carries its
+    # code into this form, but a code is no longer required for NLI lookup.
     for tmpl in addisbn.html scanIsbn.html; do
       substituteInPlace $out/templates/$tmpl \
         --replace-fail \

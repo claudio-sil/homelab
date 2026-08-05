@@ -1,10 +1,40 @@
-{% if code %}
-<div style="margin-bottom:20px;">
-  <p>Automatic lookup for code <strong>{{ code }}</strong> didn't find a match (common for Israeli Danacode barcodes, which aren't ISBNs). Enter the book's title and we'll look it up via the National Library of Israel:</p>
-  <form onsubmit="nliTitleLookup();return false;">
-    <input type="text" name="nliTitleInput" placeholder="Book title" value="" />
-    <input type="submit" value="Look up by title" />
+<div style="margin-bottom:20px; padding:16px; border:1px solid #ccc; border-radius:8px;">
+  <h3 style="margin-top:0;">Add an Israeli book by title</h3>
+  <p>
+    Search the National Library of Israel when the book has no ISBN.
+    The author is optional, but helps choose the correct record.
+  </p>
+  <form onsubmit="nliTitleLookup(); return false;">
+    <div style="margin-bottom:10px;">
+      <label for="nliTitleInput"><strong>Title</strong></label><br />
+      <input
+        id="nliTitleInput"
+        type="text"
+        name="nliTitleInput"
+        placeholder="Book title"
+        required
+        style="width:min(100%, 34rem);"
+      />
+    </div>
+    <div style="margin-bottom:10px;">
+      <label for="nliAuthorInput"><strong>Author</strong> (optional)</label><br />
+      <input
+        id="nliAuthorInput"
+        type="text"
+        name="nliAuthorInput"
+        placeholder="Author name"
+        style="width:min(100%, 34rem);"
+      />
+    </div>
+    {% if code %}
+    <input id="nliCodeInput" type="hidden" value="{{ code }}" />
+    <p style="font-size:0.9em;">
+      Scanned code <strong>{{ code }}</strong> will be retained as a custom field.
+    </p>
+    {% else %}
+    <input id="nliCodeInput" type="hidden" value="" />
+    {% endif %}
+    <input type="submit" value="Search NLI" />
   </form>
 </div>
 <hr />
-{% endif %}
