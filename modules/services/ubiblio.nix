@@ -58,6 +58,7 @@ let
     chmod -R u+w $out
 
     cp ${./ubiblio-nfc-addon/nfc.py} $out/ubiblio/routers/nfc.py
+    cp ${./ubiblio-nfc-addon/circulation.py} $out/ubiblio/routers/circulation.py
     cp ${./ubiblio-nfc-addon/nfc_result.html} $out/templates/nfc_result.html
 
     # Wire the new router into main.py the same way the other five are.
