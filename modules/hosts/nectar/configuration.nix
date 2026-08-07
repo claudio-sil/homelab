@@ -29,6 +29,7 @@
       # 3. Host-specific Packages
       environment.systemPackages = with pkgs; [
         # Host-specific tools can go here
+        sops
       ];
     };
 }
