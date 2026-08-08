@@ -59,18 +59,20 @@ let
 
     cp ${./ubiblio-nfc-addon/nfc.py} $out/ubiblio/routers/nfc.py
     cp ${./ubiblio-nfc-addon/circulation.py} $out/ubiblio/routers/circulation.py
+    cp ${./ubiblio-nfc-addon/device_auth.py} $out/ubiblio/routers/device_auth.py
+    cp ${./ubiblio-nfc-addon/nfc_api.py} $out/ubiblio/routers/nfc_api.py
     cp ${./ubiblio-nfc-addon/nfc_result.html} $out/templates/nfc_result.html
 
-    # Wire the new router into main.py the same way the other five are.
-    substituteInPlace $out/ubiblio/main.py \
-      --replace-fail \
-        "from .routers import auth, books, reading_lists, files, admin, federation" \
-        "from .routers import auth, books, reading_lists, files, admin, federation, nfc" \
-      --replace-fail \
-        "app.include_router(federation.router)" \
-        "app.include_router(federation.router)
-app.include_router(nfc.router)"
-
+    # Wire the browser NFC route and authenticated NFC API into main.py.
+substituteInPlace $out/ubiblio/main.py \
+  --replace-fail \
+    "from .routers import auth, books, reading_lists, files, admin, federation" \
+    "from .routers import auth, books, reading_lists, files, admin, federation, nfc, nfc_api" \
+  --replace-fail \
+    "app.include_router(federation.router)" \
+    "app.include_router(federation.router)
+app.include_router(nfc.router)
+app.include_router(nfc_api.router)"
     # NLI_API_KEY env var, same pattern as the existing GOOGLE_BOOKS_API_KEY.
     substituteInPlace $out/ubiblio/vars.py \
       --replace-fail \

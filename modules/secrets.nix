@@ -15,6 +15,7 @@
   sops.secrets.ubiblio_admin_username = {};
   sops.secrets.ubiblio_admin_password = {};
   sops.secrets.ubiblio_nli_api_key = {};
+  sops.secrets.ubiblio_nfc_tokens = {};
 
   # Renders a plain KEY=VALUE env file at runtime (decrypted, root-only,
   # never touches the git repo or the Nix store) that ubiblio.nix points
@@ -25,6 +26,7 @@
       ADMIN_USERNAME=${config.sops.placeholder.ubiblio_admin_username}
       ADMIN_PASSWORD=${config.sops.placeholder.ubiblio_admin_password}
       NLI_API_KEY=${config.sops.placeholder.ubiblio_nli_api_key}
+      NFC_DEVICE_TOKENS=${config.sops.placeholder.ubiblio_nfc_tokens}
     '';
     restartUnits = [ "ubiblio.service" ];
   };
